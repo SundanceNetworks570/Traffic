@@ -1,82 +1,253 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Road Work, Closures & Traffic by ZIP</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com"/>
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
-    <style>
-      :root { --bg:#0b1020; --panel:#111733; --ink:#e7ebff; --muted:#a9b0d9; --accent:#5ae0a3; --warn:#ffd166; --bad:#ff6b6b; }
-      * { box-sizing: border-box; }
-      body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:var(--ink); background: radial-gradient(1200px 800px at 20% -10%, #1a2160 0%, #0b1020 55%) fixed; }
-      header { padding:24px 20px 10px; text-align:center; }
-      header h1 { margin:0; font-size: clamp(20px, 3vw, 32px); letter-spacing: 0.2px; }
-      header p { margin:6px 0 0; color: var(--muted); }
-      .container { max-width: 1100px; margin: 16px auto 32px; padding: 0 16px 24px; }
-      .card { background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,40,0.35); }
-      .toolbar { display:flex; flex-wrap: wrap; gap:12px; padding: 16px; align-items:center; }
-      .toolbar input, .toolbar select { background: #0f1530; color: var(--ink); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px 14px; font-size: 16px; outline: none; flex: 1 1 160px; }
-      .toolbar button { background: var(--accent); color:#0a0d1c; border: none; border-radius: 12px; padding: 12px 16px; font-weight: 700; cursor: pointer; transition: transform .06s ease; }
-      .toolbar button:active { transform: translateY(1px); }
-      .meta-row { display:flex; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 14px; padding: 0 16px 12px; }
-      .results { padding: 8px 4px 18px; }
-      .item { display:grid; grid-template-columns: 1fr auto; gap: 10px; padding: 14px 16px; border-top: 1px dashed rgba(255,255,255,0.12); }
-      .item:first-child { border-top: none; }
-      .badge { display:inline-flex; align-items:center; gap:6px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; letter-spacing: .2px; }
-      .badge.work { background: rgba(90,224,163,.15); color: var(--accent); border: 1px solid rgba(90,224,163,.35); }
-      .badge.closure { background: rgba(255,107,107,.10); color: #ffb2b2; border: 1px solid rgba(255,255,255,.35); }
-      .badge.incident { background: rgba(255,209,102,.12); color: #ffe0a6; border: 1px solid rgba(255,209,102,.35); }
-      .title { margin: 0 0 6px; font-size: 18px; }
-      .subtle { color: var(--muted); font-size: 14px; }
-      .right { text-align:right; }
-      .link { color: #93c5ff; text-decoration: none; font-weight: 600; }
-      .link:hover { text-decoration: underline; }
-      .pill { border:1px solid rgba(255,255,255,.15); border-radius: 999px; padding: 6px 10px; font-size: 12px; color: var(--muted); }
-      .spinner { width:22px; height:22px; border-radius:50%; border:3px solid rgba(255,255,255,.15); border-top-color: var(--accent); animation: spin .9s linear infinite; display:inline-block; vertical-align: middle; }
-      @keyframes spin { to { transform: rotate(360deg);} }
-      footer { text-align:center; color:var(--muted); font-size: 12px; padding: 16px; }
-      .note { color: var(--muted); font-size: 12px; padding: 8px 16px 16px; }
-      .error { color:#ffb2b2; padding: 6px 16px; }
-      details.debug { margin: 8px 16px; color: var(--muted); }
-      details.debug summary { cursor: pointer; color: #c5d3ff; }
-      pre.small { font-size: 12px; white-space: pre-wrap; word-break: break-all; }
-    </style>
-  </head>
-  <body>
-    <header>
-      <h1>Road Work, Closures & Traffic by ZIP</h1>
-      <p>Enter a ZIP code to see nearby construction, closures, and traffic-related events. Refresh the page any time to re-fetch live data.</p>
-    </header>
+// GitHub Pages–ready build with proxy + geocoder fallback
+(() => {
+  const UI = {
+    zip: document.getElementById('zipInput'),
+    radius: document.getElementById('radius'),
+    go: document.getElementById('goBtn'),
+    results: document.getElementById('results'),
+    summaryRow: document.getElementById('summaryRow'),
+    summaryZip: document.getElementById('summaryZip'),
+    summaryPlace: document.getElementById('summaryPlace'),
+    summaryCounts: document.getElementById('summaryCounts'),
+    summaryUpdated: document.getElementById('summaryUpdated'),
+    errors: document.getElementById('errors'),
+    debug: document.getElementById('debug'),
+  };
 
-    <main class="container card">
-      <div class="toolbar">
-        <input id="zipInput" inputmode="numeric" maxlength="10" placeholder="Enter ZIP (e.g., 18360)" autocomplete="postal-code" />
-        <select id="radius">
-          <option value="5">Within 5 miles</option>
-          <option value="10">Within 10 miles</option>
-          <option value="25" selected>Within 25 miles</option>
-          <option value="50">Within 50 miles</option>
-        </select>
-        <button id="goBtn">Search</button>
-      </div>
-      <div class="meta-row" id="summaryRow" hidden>
-        <span id="summaryZip" class="pill"></span>
-        <span id="summaryPlace" class="pill"></span>
-        <span id="summaryCounts" class="pill"></span>
-        <span id="summaryUpdated" class="pill"></span>
-      </div>
-      <div class="note">Sources: WZDx work zone feeds (construction/closures), state 511 where available, reverse geocoding for addresses (OSM). Links open in Google Maps.</div>
-      <div class="results" id="results"></div>
-      <div id="errors" class="error"></div>
-      <details class="debug"><summary>Debug info</summary><pre id="debug" class="small"></pre></details>
-    </main>
+  // --- Proxy config (enabled by default for GitHub Pages) ------------------
+  const PROXY_MODE = 'prefix'; // 'prefix' | 'query' | 'none'
+  const PROXY_URLS = {
+    prefix: 'https://cors.isomorphic-git.org/',
+    query:  'https://api.allorigins.win/raw?url=',
+  };
 
-    <footer>
-      Hosted on GitHub Pages. If a provider blocks CORS, use the built‑in proxy or your own in <code>app.js</code>.
-    </footer>
+  function withProxy(url){
+    if(PROXY_MODE === 'prefix') return PROXY_URLS.prefix + url;
+    if(PROXY_MODE === 'query')  return PROXY_URLS.query + encodeURIComponent(url);
+    return url;
+  }
 
-    <script src="app.js" defer></script>
-  </body>
-</html>
+  function log(msg){
+    if(UI.debug) UI.debug.textContent += msg + '\\n';
+    console.log(msg);
+  }
+  function error(msg){
+    if(UI.errors) UI.errors.textContent = '✖ ' + msg;
+    log('[ERR] ' + msg);
+  }
+
+  // --- Fetch helpers -------------------------------------------------------
+  async function fetchJSON(url){
+    const reqUrl = withProxy(url);
+    try{
+      const res = await fetch(reqUrl, { headers: { 'Accept': 'application/json' } });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }catch(e){
+      error(`Fetch failed: ${url} → ${e.message}`);
+      throw e;
+    }
+  }
+
+  // --- Geocoding (with fallback) -------------------------------------------
+  async function geocodeZip(zip){
+    // 1) Try Zippopotam.us
+    try{
+      const data = await fetchJSON(`https://api.zippopotam.us/us/${encodeURIComponent(zip)}`);
+      const p = data.places?.[0];
+      if(p){
+        log('Geocoder: Zippopotam.us');
+        return {
+          lat: parseFloat(p.latitude),
+          lon: parseFloat(p.longitude),
+          place: `${p["place name"]}, ${p["state abbreviation"]}`,
+          state: p["state abbreviation"]
+        };
+      }
+    }catch{ /* fall through */ }
+
+    // 2) Fallback: Nominatim forward geocode (postalcode + country)
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&country=us&postalcode=${encodeURIComponent(zip)}&limit=1`;
+    const data = await fetchJSON(url);
+    if(Array.isArray(data) && data[0]){
+      log('Geocoder: OSM Nominatim (fallback)');
+      const p = data[0];
+      const state = (p.address && (p.address.state_code || p.address.state)) || '';
+      return {
+        lat: parseFloat(p.lat),
+        lon: parseFloat(p.lon),
+        place: p.display_name || `ZIP ${zip}`,
+        state: (state || '').toString().slice(0,2).toUpperCase() // best-effort
+      };
+    }
+    throw new Error('ZIP not found via both geocoders.');
+  }
+
+  async function reverseGeocode(lat, lon){
+    try{
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+      const json = await fetchJSON(url);
+      return json.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+    }catch{
+      return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+    }
+  }
+
+  // --- Data providers ------------------------------------------------------
+  const WZDX_FEEDS = [
+    { name: 'Pennsylvania WZDx', url: 'https://www.511pa.com/wzdx/work-zones' },
+  ];
+  const PA_EVENTS = () => 'https://www.511pa.com/api/events/getevents';
+
+  function pointFromGeometry(geom){
+    if(!geom) return null;
+    if(geom.type === 'Point') return { lat: geom.coordinates[1], lon: geom.coordinates[0] };
+    const coords = geom.coordinates;
+    if(geom.type === 'LineString' && coords?.length)  return { lat: coords[0][1], lon: coords[0][0] };
+    if(geom.type === 'Polygon' && coords?.[0]?.length) return { lat: coords[0][0][1], lon: coords[0][0][0] };
+    return null;
+  }
+  function googleMapsLink(lat, lon){ return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`; }
+  function badgeFor(item){
+    const t = item.kind;
+    if(t === 'work') return '<span class="badge work">Construction</span>';
+    if(t === 'closure') return '<span class="badge closure">Closure</span>';
+    return '<span class="badge incident">Traffic / Incident</span>';
+  }
+  function normalizeWZDxFeature(f){
+    const p = f.properties || {};
+    const anchor = pointFromGeometry(f.geometry);
+    const eventType = (p.event_type || p.core_details?.event_type || '').toLowerCase();
+    const status = p.core_details?.event_status || p.event_status || p.status || '';
+    const kind = (p.is_full_closure || p.core_details?.is_full_closure) ? 'closure'
+                : (eventType.includes('work') || eventType.includes('work-zone') || eventType.includes('construction')) ? 'work'
+                : 'work';
+    return {
+      kind,
+      title: p.core_details?.name || p.description || p.core_details?.description || 'Road Work',
+      road: (p.core_details?.road_names || p.road_names || []).join(', '),
+      status,
+      start: p.core_details?.start_date || p.start_date || p.start_time || p.start || null,
+      end: p.core_details?.end_date || p.end_date || p.end_time || p.end || null,
+      anchor,
+      raw: p,
+      source: 'WZDx'
+    };
+  }
+  function normalizePAEvent(e){
+    const lat = e.latitude || e.location?.latitude || e.lat || e.lat1 || e.point?.lat;
+    const lon = e.longitude || e.location?.longitude || e.lon || e.long || e.point?.lon;
+    const category = (e.category || e.eventType || e.type || e.event_subtype || '').toLowerCase();
+    let kind = 'incident';
+    if(category.includes('closure')) kind = 'closure';
+    if(category.includes('construction') || category.includes('work')) kind = 'work';
+    return {
+      kind,
+      title: e.title || e.headline || e.description || 'Traffic Event',
+      road: e.roadName || e.road || e.route || '',
+      status: e.status || e.eventStatus || '',
+      start: e.startTime || e.start_date || null,
+      end: e.endTime || e.end_date || null,
+      anchor: (lat && lon) ? { lat: Number(lat), lon: Number(lon) } : null,
+      raw: e,
+      source: '511PA'
+    };
+  }
+
+  async function fetchAllFeeds(state){
+    const out = [];
+    for(const f of WZDX_FEEDS){
+      try{
+        const json = await fetchJSON(f.url);
+        out.push(...(json.features || []).map(normalizeWZDxFeature));
+      }catch(e){ error(`WZDx failed: ${f.url}`); }
+    }
+    if((state||'').toUpperCase() === 'PA'){
+      try{
+        const events = await fetchJSON(PA_EVENTS());
+        const list = Array.isArray(events) ? events : (events?.events || events?.data || []);
+        out.push(...(list||[]).map(normalizePAEvent));
+      }catch(e){ error('511PA fetch failed.'); }
+    }
+    return out;
+  }
+
+  // --- UI orchestration ----------------------------------------------------
+  function renderLoading(){
+    UI.results.innerHTML = `<div style="padding:18px 16px;">
+      <span class="spinner"></span> Fetching live data…
+    </div>`;
+    UI.errors.textContent = '';
+    UI.debug.textContent = '';
+  }
+
+  async function runSearch(zip, radiusMiles){
+    renderLoading();
+    let center;
+    try{
+      center = await geocodeZip(zip);
+    }catch(err){
+      UI.results.innerHTML = `<div style="padding:18px 16px; color:#ffb2b2;">❌ ${err.message}</div>`;
+      return;
+    }
+
+    const all = await fetchAllFeeds(center.state);
+    const kmLimit = radiusMiles / 0.621371;
+    const centerPt = { lat: center.lat, lon: center.lon };
+    const filtered = all
+      .filter(x => x.anchor)
+      .map(x => ({ ...x, distanceKm: haversineKm(centerPt, x.anchor) }))
+      .filter(x => x.distanceKm <= kmLimit)
+      .sort((a,b) => a.distanceKm - b.distanceKm);
+
+    // Reverse geocode addresses (limited concurrency)
+    let i = 0; const concurrency = 3;
+    async function worker(){ while(i < filtered.length){ const idx = i++; const it = filtered[idx]; it.address = await reverseGeocode(it.anchor.lat, it.anchor.lon); } }
+    await Promise.all(Array.from({length: Math.min(concurrency, filtered.length)}, worker));
+
+    // Summary
+    UI.summaryZip.textContent = `ZIP: ${zip}`;
+    UI.summaryPlace.textContent = `Near: ${center.place}`;
+    const counts = { work:0, closure:0, incident:0 };
+    filtered.forEach(f => counts[f.kind] = (counts[f.kind]||0)+1);
+    UI.summaryCounts.textContent = `Found: ${filtered.length} (work ${counts.work||0} • closures ${counts.closure||0} • incidents ${counts.incident||0})`;
+    UI.summaryUpdated.textContent = `Updated: ${new Date().toLocaleString()}`;
+    UI.summaryRow.hidden = false;
+
+    if(!filtered.length){
+      UI.results.innerHTML = `<div style="padding:18px 16px;">No items within ${radiusMiles} miles. Try a larger radius.</div>`;
+      return;
+    }
+
+    UI.results.innerHTML = filtered.map(it => {
+      const lat = it.anchor.lat.toFixed(5), lon = it.anchor.lon.toFixed(5);
+      const when = [it.start?`Start: ${new Date(it.start).toLocaleString()}`:'', it.end?`End: ${new Date(it.end).toLocaleString()}`:''].filter(Boolean).join(' · ');
+      const subtitle = [it.road, it.status, when].filter(Boolean).join(' • ');
+      const maps = googleMapsLink(it.anchor.lat, it.anchor.lon);
+      return `<div class="item">
+        <div>
+          <div>${badgeFor(it)}</div>
+          <h3 class="title">${(it.title||'Road Work').replace(/</g,'&lt;')}</h3>
+          <div class="subtle">${(it.address||`${lat}, ${lon}`).replace(/</g,'&lt;')}</div>
+          ${subtitle ? `<div class="subtle">${subtitle.replace(/</g,'&lt;')}</div>` : ''}
+        </div>
+        <div class="right">
+          <div style="margin-bottom:8px;">~${fmt.miles(it.distanceKm)} mi</div>
+          <a class="link" target="_blank" rel="noopener" href="${maps}">Open in Google Maps ↗</a>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Events
+  UI.go.addEventListener('click', () => {
+    const zip = (UI.zip.value || '').trim();
+    const r = parseFloat(UI.radius.value || '25');
+    if(!/^\d{5}(-\d{4})?$/.test(zip)){
+      UI.results.innerHTML = '<div style="padding:18px 16px; color:#ffb2b2;">Please enter a valid US ZIP (5 digits).</div>';
+      return;
+    }
+    runSearch(zip, r);
+  });
+  UI.zip.addEventListener('keydown', (e) => { if(e.key === 'Enter') UI.go.click(); });
+})();
