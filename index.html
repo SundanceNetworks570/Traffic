@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Road Work, Closures & Traffic by ZIP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <style>
+      :root { --bg:#0b1020; --panel:#111733; --ink:#e7ebff; --muted:#a9b0d9; --accent:#5ae0a3; --warn:#ffd166; --bad:#ff6b6b; }
+      * { box-sizing: border-box; }
+      body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:var(--ink); background: radial-gradient(1200px 800px at 20% -10%, #1a2160 0%, #0b1020 55%) fixed; }
+      header { padding:24px 20px 10px; text-align:center; }
+      header h1 { margin:0; font-size: clamp(20px, 3vw, 32px); letter-spacing: 0.2px; }
+      header p { margin:6px 0 0; color: var(--muted); }
+      .container { max-width: 1100px; margin: 16px auto 32px; padding: 0 16px 24px; }
+      .card { background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,40,0.35); }
+      .toolbar { display:flex; flex-wrap: wrap; gap:12px; padding: 16px; align-items:center; }
+      .toolbar input, .toolbar select { background: #0f1530; color: var(--ink); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px 14px; font-size: 16px; outline: none; flex: 1 1 160px; }
+      .toolbar button { background: var(--accent); color:#0a0d1c; border: none; border-radius: 12px; padding: 12px 16px; font-weight: 700; cursor: pointer; transition: transform .06s ease; }
+      .toolbar button:active { transform: translateY(1px); }
+      .meta-row { display:flex; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 14px; padding: 0 16px 12px; }
+      .results { padding: 8px 4px 18px; }
+      .item { display:grid; grid-template-columns: 1fr auto; gap: 10px; padding: 14px 16px; border-top: 1px dashed rgba(255,255,255,0.12); }
+      .item:first-child { border-top: none; }
+      .badge { display:inline-flex; align-items:center; gap:6px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; letter-spacing: .2px; }
+      .badge.work { background: rgba(90,224,163,.15); color: var(--accent); border: 1px solid rgba(90,224,163,.35); }
+      .badge.closure { background: rgba(255,107,107,.10); color: #ffb2b2; border: 1px solid rgba(255,255,255,.35); }
+      .badge.incident { background: rgba(255,209,102,.12); color: #ffe0a6; border: 1px solid rgba(255,209,102,.35); }
+      .title { margin: 0 0 6px; font-size: 18px; }
+      .subtle { color: var(--muted); font-size: 14px; }
+      .right { text-align:right; }
+      .link { color: #93c5ff; text-decoration: none; font-weight: 600; }
+      .link:hover { text-decoration: underline; }
+      .pill { border:1px solid rgba(255,255,255,.15); border-radius: 999px; padding: 6px 10px; font-size: 12px; color: var(--muted); }
+      .spinner { width:22px; height:22px; border-radius:50%; border:3px solid rgba(255,255,255,.15); border-top-color: var(--accent); animation: spin .9s linear infinite; display:inline-block; vertical-align: middle; }
+      @keyframes spin { to { transform: rotate(360deg);} }
+      footer { text-align:center; color:var(--muted); font-size: 12px; padding: 16px; }
+      .note { color: var(--muted); font-size: 12px; padding: 8px 16px 16px; }
+      .error { color:#ffb2b2; padding: 6px 16px; }
+      details.debug { margin: 8px 16px; color: var(--muted); }
+      details.debug summary { cursor: pointer; color: #c5d3ff; }
+      pre.small { font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+      .banner { margin: 0 16px 12px; padding: 10px 12px; border-radius: 12px; border:1px solid rgba(255,255,255,.18); background: rgba(255,209,102,.12); color:#ffe0a6; display:none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Road Work, Closures & Traffic by ZIP</h1>
+      <p>Enter a ZIP code to see nearby construction, closures, and traffic-related events. Refresh the page any time to re-fetch live data.</p>
+    </header>
+
+    <main class="container card">
+      <div class="toolbar">
+        <input id="zipInput" inputmode="numeric" maxlength="10" placeholder="Enter ZIP (e.g., 18360)" autocomplete="postal-code" />
+        <select id="radius">
+          <option value="5">Within 5 miles</option>
+          <option value="10">Within 10 miles</option>
+          <option value="25" selected>Within 25 miles</option>
+          <option value="50">Within 50 miles</option>
+        </select>
+        <button id="goBtn">Search</button>
+        <label style="margin-left:auto; font-size:12px; color:#a9b0d9;"><input id="mockToggle" type="checkbox"/> Mock data</label>
+      </div>
+      <div id="coverageBanner" class="banner"></div>
+      <div class="meta-row" id="summaryRow" hidden>
+        <span id="summaryZip" class="pill"></span>
+        <span id="summaryPlace" class="pill"></span>
+        <span id="summaryCounts" class="pill"></span>
+        <span id="summaryUpdated" class="pill"></span>
+      </div>
+      <div class="note">Sources: PA WZDx + 511PA (via your proxy). If mock mode is on, results are local sample data.</div>
+      <div class="results" id="results"></div>
+      <div id="errors" class="error"></div>
+      <details class="debug"><summary>Debug info</summary><pre id="debug" class="small"></pre></details>
+    </main>
+
+    <footer>
+      GitHub Pages compatible. For LIVE data, deploy the included Cloudflare Worker and paste its URL into <code>app.js</code>.
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
