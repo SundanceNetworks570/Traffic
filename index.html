@@ -26,7 +26,7 @@
       .item:first-child { border-top: none; }
       .badge { display:inline-flex; align-items:center; gap:6px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; letter-spacing: .2px; }
       .badge.work { background: rgba(90,224,163,.15); color: var(--accent); border: 1px solid rgba(90,224,163,.35); }
-      .badge.closure { background: rgba(255,107,107,.10); color: #ffb2b2; border: 1px solid rgba(255,107,107,.35); }
+      .badge.closure { background: rgba(255,107,107,.10); color: #ffb2b2; border: 1px solid rgba(255,255,255,.35); }
       .badge.incident { background: rgba(255,209,102,.12); color: #ffe0a6; border: 1px solid rgba(255,209,102,.35); }
       .title { margin: 0 0 6px; font-size: 18px; }
       .subtle { color: var(--muted); font-size: 14px; }
@@ -38,8 +38,6 @@
       @keyframes spin { to { transform: rotate(360deg);} }
       footer { text-align:center; color:var(--muted); font-size: 12px; padding: 16px; }
       .note { color: var(--muted); font-size: 12px; padding: 8px 16px 16px; }
-      .banner { margin: 0 16px 12px; padding: 10px 12px; border-radius: 12px; border:1px solid rgba(255,255,255,.18); background: rgba(255,209,102,.12); color:#ffe0a6; display:none; }
-      .banner strong { color:#fff3cd; }
       .error { color:#ffb2b2; padding: 6px 16px; }
       details.debug { margin: 8px 16px; color: var(--muted); }
       details.debug summary { cursor: pointer; color: #c5d3ff; }
@@ -58,26 +56,25 @@
         <select id="radius">
           <option value="5">Within 5 miles</option>
           <option value="10">Within 10 miles</option>
-          <option value="25">Within 25 miles</option>
-          <option value="50" selected>Within 50 miles</option>
+          <option value="25" selected>Within 25 miles</option>
+          <option value="50">Within 50 miles</option>
         </select>
         <button id="goBtn">Search</button>
       </div>
-      <div id="coverageBanner" class="banner"></div>
       <div class="meta-row" id="summaryRow" hidden>
         <span id="summaryZip" class="pill"></span>
         <span id="summaryPlace" class="pill"></span>
         <span id="summaryCounts" class="pill"></span>
         <span id="summaryUpdated" class="pill"></span>
       </div>
-      <div class="note">Sources: WZDx work zone feeds (construction/closures), state 511 where available, basic reverse geocoding for human‑readable addresses. Links open in Google Maps.</div>
+      <div class="note">Sources: WZDx work zone feeds (construction/closures), state 511 where available, reverse geocoding for addresses (OSM). Links open in Google Maps.</div>
       <div class="results" id="results"></div>
       <div id="errors" class="error"></div>
       <details class="debug"><summary>Debug info</summary><pre id="debug" class="small"></pre></details>
     </main>
 
     <footer>
-      Built for easy copy‑paste deployment. No server required. Some regions may require an API key or CORS proxy; see <code>app.js</code>.
+      Hosted on GitHub Pages. If a provider blocks CORS, use the built‑in proxy or your own in <code>app.js</code>.
     </footer>
 
     <script src="app.js" defer></script>
